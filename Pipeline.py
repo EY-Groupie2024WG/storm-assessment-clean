@@ -143,13 +143,19 @@ if __name__ == "__main__":
         for suffix in suffixes:
             image_directory = f"{home}/temp/{suffix}_event/{user}"
             
-            # Skip to the next suffix if the directory does not exist
+            # Check if the directory exists
             if not os.path.exists(image_directory):
                 print(f"Directory not found: {image_directory}. Skipping...")
                 continue
                 
             processor.rename_images_with_suffix(image_directory, suffix)
             path_to_annots_json = f"{home}/temp/{suffix}_event/{user}-{suffix}.json"
+
+            # Check if the annotation file exists
+            if not os.path.exists(path_to_annots_json):
+                print(f"Annotation file not found: {path_to_annots_json}. Skipping...")
+                continue
+
             path_to_images = image_directory
             print("Path Annots:", path_to_annots_json)
             print("Path Images:", path_to_images)
