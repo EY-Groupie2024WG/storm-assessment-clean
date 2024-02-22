@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     # Current progress:
     users = ['user_1', 'user_4']
-    suffixes = ['pre']
+    suffixes = ['pre', 'post']
 
     # If everything complete:
     # users = ['user_1', 'user_2', 'user_3', 'user_4']
