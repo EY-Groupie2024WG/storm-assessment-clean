@@ -132,24 +132,30 @@ if __name__ == "__main__":
     # Current progress:
     users = ['user_1', 'user_4']
     suffixes = ['pre', 'post']
-
+    
     # If everything complete:
     # users = ['user_1', 'user_2', 'user_3', 'user_4']
     # suffixes = ['pre', 'post']
-
+    
     datasets = []
-
+    
     for user in users:
         for suffix in suffixes:
             image_directory = f"{home}/temp/{suffix}_event/{user}"
+            
+            # Skip to the next suffix if the directory does not exist
+            if not os.path.exists(image_directory):
+                print(f"Directory not found: {image_directory}. Skipping...")
+                continue
+                
             processor.rename_images_with_suffix(image_directory, suffix)
             path_to_annots_json = f"{home}/temp/{suffix}_event/{user}-{suffix}.json"
             path_to_images = image_directory
             print("Path Annots:", path_to_annots_json)
             print("Path Images:", path_to_images)
-
+    
             dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images, user, suffix)
-
+    
             # Modify img_filename column to add suffix in front of each filename
             dataset.df['img_filename'] = suffix + '_' + dataset.df['img_filename']
             
