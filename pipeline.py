@@ -116,23 +116,16 @@ class CocoDatasetProcessor:
 
 
 if __name__ == "__main__":
-    home = os.getcwd()
+    # Define the paths
+    home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
-    temp_path = f"{home}/temp"
+    temp_path = os.path.join(home, "temp")
+    raw_data_path = os.path.join(home, "raw_data")
 
-    # Check if the temp folder already exists
-    if not os.path.exists(temp_path):
-        # Create the temp folder
-        print("Creating temp folder...")
-        os.makedirs(temp_path)
-        print("Temp folder created.")
-
-        # Copy the contents of raw_data to temp folder
-        print("Copying raw_data to temp folder...")
-        shutil.copytree(f"{home}/raw_data", temp_path)
-        print("Copying completed.")
-    else:
-        print("Temp folder already exists. Skipping creation.")
+    # Copy the contents of raw_data to temp folder
+    print("Copying raw_data to temp folder...")
+    shutil.copytree(raw_data_path, temp_path, dirs_exist_ok=True)
+    print("Copying completed.")
 
     processor = CocoDatasetProcessor(home)
 
