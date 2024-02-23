@@ -59,7 +59,7 @@ class CocoDatasetProcessor:
         - suffix (str): The suffix indicating pre/post event.
 
         Returns:
-        - Dataset: The prepared dataset.
+        - Dataset: The prepared Pylabel dataset.
         """
         print("\n")
         print(f"Preprocessing {user}-{suffix}...")
@@ -94,7 +94,7 @@ class CocoDatasetProcessor:
         - datasets (list): A list of Dataset objects to be combined.
 
         Returns:
-        - Dataset: The combined dataset.
+        - Dataset: The combined Pylabel dataset.
         """
         combined_df = pd.concat([dataset.df for dataset in datasets], axis=0)
         combined_df.sort_values(by='img_filename', inplace=True)
@@ -128,14 +128,10 @@ if __name__ == "__main__":
     print("Copying completed.")
 
     processor = CocoDatasetProcessor(home)
-
-    # Current progress:
-    users = ['user_1', 'user_4']
-    suffixes = ['pre', 'post']
     
-    # If everything complete:
-    # users = ['user_1', 'user_2', 'user_3', 'user_4']
-    # suffixes = ['pre', 'post']
+    # Creata array of JSON
+    users = ['user_1', 'user_2', 'user_3', 'user_4']
+    suffixes = ['pre', 'post']
     
     datasets = []
     
@@ -153,7 +149,7 @@ if __name__ == "__main__":
 
             # Check if the annotation file exists
             if not os.path.exists(path_to_annots_json):
-                print(f"Annotation file not found: {path_to_annots_json}. Skipping...")
+                print(f"\n\n{user}-{suffix}.json Not Found.\n Skipping...\n\n")
                 continue
 
             path_to_images = image_directory
