@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import shutil
 from pylabel import importer
+from collections import Counter
 from pylabel.dataset import Dataset
 
 class CocoDatasetProcessor:
@@ -114,6 +115,22 @@ class CocoDatasetProcessor:
 
         return Dataset(combined_df)
 
+    def check_class_fraction(self, dataset):
+        """
+        Check class fraction for the train and test splits of the given dataset.
+
+        Parameters:
+        - dataset (Dataset): The dataset to analyze.
+        """
+        splits = dataset.df.groupby('split')
+
+        for split, df in splits:
+            classes = Counter(df['cat_name'])
+            total_samples = len(df)
+            print(f"\nClass fraction for {split} dataset:")
+            for class_name, count in classes.items():
+                fraction = count / len(df)
+                print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
     # Define the paths
@@ -171,6 +188,9 @@ if __name__ == "__main__":
 
     # Remove NaN Class
     processed_dataset.df = processed_dataset.df.dropna(subset=['cat_name'])
+
+    # Check class fraction
+    processor.check_class_fraction(processed_dataset)
 
     # Statistics
     print("\n\n")
