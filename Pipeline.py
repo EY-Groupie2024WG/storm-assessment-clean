@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import shutil
+import warnings
 from pylabel import importer
 from collections import Counter
 from pylabel.dataset import Dataset
@@ -32,7 +33,7 @@ class CocoDatasetProcessor:
                 old_path = os.path.join(directory, filename)
                 new_filename = f"{suffix}_{filename}"
                 new_path = os.path.join(directory, new_filename)
-                os.rename(old_path, new_path)    
+                os.rename(old_path, new_path)
 
     def coco_to_yolo_converter(self, annots_json, path_to_images, name):
         """
@@ -133,6 +134,7 @@ class CocoDatasetProcessor:
                 print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
+    print("--------------------------\nPipeline Script \nLast Update: 29/2/2024 \n-------------------------- \n\n")
     # Define the paths
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
@@ -144,9 +146,12 @@ if __name__ == "__main__":
     shutil.copytree(raw_data_path, temp_path, dirs_exist_ok=True)
     print("Copying completed.")
 
+    # Suppress warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
+
     processor = CocoDatasetProcessor(home)
     
-    # Creata array of JSON
+    # Create array of JSON
     users = ['user_1', 'user_2', 'user_3', 'user_4']
     suffixes = ['pre', 'post']
     
