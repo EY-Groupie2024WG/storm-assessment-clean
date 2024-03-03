@@ -35,9 +35,9 @@ class CocoDatasetProcessor:
                 new_path = os.path.join(directory, new_filename)
                 os.rename(old_path, new_path)
 
-    def coco_to_yolo_converter(self, annots_json, path_to_images, name):
+    def coco_importer(self, annots_json, path_to_images, name):
         """
-        Convert COCO format annotations to YOLO format.
+        Create a COCO PyLabel dataset.
 
         Parameters:
         - annots_json (str): The path to the COCO format annotations JSON file.
@@ -45,7 +45,7 @@ class CocoDatasetProcessor:
         - name (str): The name of the dataset.
 
         Returns:
-        - Dataset: The dataset in YOLO format.
+        - Dataset: The dataset in COCO PyLabel format.
         """
         dataset = importer.ImportCoco(annots_json, path_to_images=path_to_images, name=name)
         return dataset
@@ -66,8 +66,8 @@ class CocoDatasetProcessor:
         print("\n")
         print(f"Preprocessing {user}-{suffix}...")
 
-        # Convert COCO to YOLO annotation format
-        annots_dataset = self.coco_to_yolo_converter(path_to_annots_json, path_to_images, name="annots_coco")
+        # Create a COCO PyLabel dataset
+        annots_dataset = self.coco_importer(path_to_annots_json, path_to_images, name="annots_coco")
 
         # Mapping of cat_id to cat_name
         cat_name_mapping = {
@@ -90,7 +90,7 @@ class CocoDatasetProcessor:
 
     def combine_datasets(self, datasets):
         """
-        Combine multiple datasets into a single dataset.
+        Combine multiple PyLabel datasets into a single dataset.
 
         Parameters:
         - datasets (list): A list of Dataset objects to be combined.
@@ -99,6 +99,9 @@ class CocoDatasetProcessor:
         - Dataset: The combined Pylabel dataset.
         """
         combined_df = pd.concat([dataset.df for dataset in datasets], axis=0)
+        print(f"Number of images before dropna: {Dataset(combined_df).analyze.num_images}")
+        combined_df = combined_df.dropna(subset=['cat_name'])
+        print(f"Number of images after dropna: {Dataset(combined_df).analyze.num_images}")
         combined_df.sort_values(by='img_filename', inplace=True)
         combined_df.reset_index(drop=True, inplace=True)
 
@@ -130,16 +133,16 @@ class CocoDatasetProcessor:
             total_samples = len(df)
             print(f"\nClass fraction for {split} dataset:")
             for class_name, count in classes.items():
-                fraction = count / len(df)
+                fraction = (count / len(df))*100
                 print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
-    print("--------------------------\nPipeline Script \nLast Update: 29/2/2024 \n-------------------------- \n\n")
+    print("--------------------------\nPipeline Script \nLast Update: 3/3/2024 \n-------------------------- \n\n")
     # Define the paths
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
     temp_path = os.path.join(home, "temp")
-    raw_data_path = os.path.join(home, "raw_data")
+    raw_data_path = os.path.join(home, "raw_data_test")
 
     # Copy the contents of raw_data to temp folder
     print("Copying raw_data to temp folder...")
@@ -175,9 +178,6 @@ if __name__ == "__main__":
                 continue
 
             path_to_images = image_directory
-            print("Path Annots:", path_to_annots_json)
-            print("Path Images:", path_to_images)
-    
             dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images, user, suffix)
     
             # Modify img_filename column to add suffix in front of each filename
@@ -189,10 +189,8 @@ if __name__ == "__main__":
     processed_dataset = processor.combine_datasets(datasets)
 
     # Split into Train and Test
-    processed_dataset.splitter.GroupShuffleSplit(train_pct=0.8, val_pct=0, test_pct=0.2)
-
-    # Remove NaN Class
-    processed_dataset.df = processed_dataset.df.dropna(subset=['cat_name'])
+    #processed_dataset.splitter.GroupShuffleSplit(train_pct=0.8, val_pct=0, test_pct=0.2)
+    processed_dataset.splitter.StratifiedGroupShuffleSplit(train_pct=0.8, val_pct=0, test_pct=0.2, batch_size=1)
 
     # Check class fraction
     processor.check_class_fraction(processed_dataset)
@@ -203,6 +201,7 @@ if __name__ == "__main__":
     print(f"Number of classes: {processed_dataset.analyze.num_classes}")
     print(f"Classes:{processed_dataset.analyze.classes}")
     print(f"Class counts:\n{processed_dataset.analyze.class_counts}")
+    print(f"Path to annotations:\n{processed_dataset.path_to_annotations}")
     print("\n\n")
 
     # Export for YOLO
