@@ -142,7 +142,7 @@ if __name__ == "__main__":
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
     temp_path = os.path.join(home, "temp")
-    raw_data_path = os.path.join(home, "raw_data_test")
+    raw_data_path = os.path.join(home, "raw_data")
 
     # Copy the contents of raw_data to temp folder
     print("Copying raw_data to temp folder...")
