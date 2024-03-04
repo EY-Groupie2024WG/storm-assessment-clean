@@ -88,7 +88,7 @@ class CocoDatasetProcessor:
 
         return annots_dataset
 
-    def combine_datasets(self, datasets):
+    def combine_datasets(self, datasets, background_dataset):
         """
         Combine multiple PyLabel datasets into a single dataset.
 
@@ -102,6 +102,8 @@ class CocoDatasetProcessor:
         print(f"Number of images before dropna: {Dataset(combined_df).analyze.num_images}")
         combined_df = combined_df.dropna(subset=['cat_name'])
         print(f"Number of images after dropna: {Dataset(combined_df).analyze.num_images}")
+        combined_df = pd.concat([background_dataset, combined_df], axis=0)
+        print(f"Number of images after adding background images: {Dataset(combined_df).analyze.num_images}")
         combined_df.sort_values(by='img_filename', inplace=True)
         combined_df.reset_index(drop=True, inplace=True)
 
@@ -137,7 +139,7 @@ class CocoDatasetProcessor:
                 print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
-    print("--------------------------\nPipeline Script \nLast Update: 3/3/2024 \n-------------------------- \n\n")
+    print("--------------------------\nPipeline Script \nLast Update: 4/3/2024 \n-------------------------- \n\n")
     # Define the paths
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
@@ -145,6 +147,7 @@ if __name__ == "__main__":
     raw_data_path = os.path.join(home, "raw_data")
 
     # Copy the contents of raw_data to temp folder
+    print("--------------------------\n( 1 ) Creating 'temp' Folder\n--------------------------\n")
     print("Copying raw_data to temp folder...")
     shutil.copytree(raw_data_path, temp_path, dirs_exist_ok=True)
     print("Copying completed.")
@@ -155,6 +158,7 @@ if __name__ == "__main__":
     processor = CocoDatasetProcessor(home)
     
     # Create array of JSON
+    print("--------------------------\n( 2 ) Preparing PyLabel COCO Dataset\n--------------------------\n")
     users = ['user_1', 'user_2', 'user_3', 'user_4']
     suffixes = ['pre', 'post']
     
@@ -184,19 +188,31 @@ if __name__ == "__main__":
             dataset.df['img_filename'] = suffix + '_' + dataset.df['img_filename']
             
             datasets.append(dataset)
-
+            
+    # Process additional datasets excluding annotations (Background)
+    print("--------------------------\n( 3 ) Adding Optional Dataset\n--------------------------\n")
+    print("Adding Background Dataset...")
+    path_to_bg = f"{home}/temp/background/background"  
+    path_to_bg_annots_json = f"{home}/temp/background/background_img.json" 
+    bg_dataset = importer.ImportCoco(path_to_bg_annots_json, path_to_images=path_to_bg, name="annots_bg") 
+    bg_dataset = bg_dataset.df[bg_dataset.df['img_filename'] != 'base.jpg']     
+    
     # Combine multiple input datasets
-    processed_dataset = processor.combine_datasets(datasets)
+    print("--------------------------\n( 4 ) Creating Dataset\n--------------------------\n")
+    # TO-DO - Add synthetic images
+    processed_dataset = processor.combine_datasets(datasets, bg_dataset)
 
     # Split into Train and Test
-    #processed_dataset.splitter.GroupShuffleSplit(train_pct=0.8, val_pct=0, test_pct=0.2)
+    print("--------------------------\n( 5 ) Splitting Dataset\n--------------------------\n")
     processed_dataset.splitter.StratifiedGroupShuffleSplit(train_pct=0.8, val_pct=0, test_pct=0.2, batch_size=1)
 
     # Check class fraction
+    print("--------------------------\n( 6 ) Checking Splits Statistics\n--------------------------\n")
     processor.check_class_fraction(processed_dataset)
 
     # Statistics
     print("\n\n")
+    print("--------------------------\n( 7 ) Dataset Statistics\n--------------------------\n")
     print(f"Number of images: {processed_dataset.analyze.num_images}")
     print(f"Number of classes: {processed_dataset.analyze.num_classes}")
     print(f"Classes:{processed_dataset.analyze.classes}")
@@ -205,6 +221,7 @@ if __name__ == "__main__":
     print("\n\n")
 
     # Export for YOLO
+    print("--------------------------\n( 8 ) COCO to YOLO\n--------------------------\n")
     print("Exporting to YOLO format...")
     processed_dataset.export.ExportToYoloV5(output_path=f'{destination_path}/labels',
                                             yaml_file='dataset.yaml',
@@ -214,3 +231,4 @@ if __name__ == "__main__":
     
     # Remove the temporary directory
     shutil.rmtree(temp_path)
+    print("--------------------------\nPipeline Script End\n--------------------------\n")
