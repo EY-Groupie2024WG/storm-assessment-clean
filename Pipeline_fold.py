@@ -50,22 +50,17 @@ class CocoDatasetProcessor:
         dataset = importer.ImportCoco(annots_json, path_to_images=path_to_images, name=name)
         return dataset
 
-    def prepare_coco_dataset(self, path_to_annots_json, path_to_images, user, suffix):
+    def prepare_coco_dataset(self, path_to_annots_json, path_to_images):
         """
         Prepare a COCO dataset for further processing.
 
         Parameters:
         - path_to_annots_json (str): The path to the COCO format annotations JSON file.
         - path_to_images (str): The path to the directory containing images.
-        - user (str): The user identifier.
-        - suffix (str): The suffix indicating pre/post event.
 
         Returns:
         - Dataset: The prepared Pylabel dataset.
         """
-        print("\n")
-        print(f"Preprocessing {user}-{suffix}...")
-
         # Create a COCO PyLabel dataset
         annots_dataset = self.coco_importer(path_to_annots_json, path_to_images, name="annots_coco")
 
@@ -88,7 +83,7 @@ class CocoDatasetProcessor:
 
         return annots_dataset
 
-    def combine_datasets(self, datasets):
+    def combine_datasets(self, datasets, synthetic_drb):
         """
         Combine multiple PyLabel datasets into a single dataset.
 
@@ -102,6 +97,8 @@ class CocoDatasetProcessor:
         print(f"Number of images before dropna: {Dataset(combined_df).analyze.num_images}")
         combined_df = combined_df.dropna(subset=['cat_name'])
         print(f"Number of images after dropna: {Dataset(combined_df).analyze.num_images}")
+        combined_df = pd.concat([synthetic_drb.df, combined_df], axis=0)
+        print(f"Number of images after adding drb: {Dataset(combined_df).analyze.num_images}")
         combined_df.sort_values(by='img_filename', inplace=True)
         combined_df.reset_index(drop=True, inplace=True)
 
@@ -137,7 +134,7 @@ class CocoDatasetProcessor:
                 print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
-    print("--------------------------\nPipeline Script \n(KFold Version) \nLast Update: 6/3/2024 \n-------------------------- \n\n")
+    print("--------------------------\nPipeline Script \n(KFold Version) \nLast Update: 7/3/2024 \n-------------------------- \n\n")
     # Define the paths
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
@@ -180,20 +177,29 @@ if __name__ == "__main__":
                 continue
 
             path_to_images = image_directory
-            dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images, user, suffix)
+            print("\n")
+            print(f"Preprocessing {user}-{suffix}...")
+            dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images)
     
             # Modify img_filename column to add suffix in front of each filename
             dataset.df['img_filename'] = suffix + '_' + dataset.df['img_filename']
             
             datasets.append(dataset)
 
+    # Process additional datasets excluding annotations (Background)
+    print("--------------------------\n( 3 ) Adding Optional Dataset\n--------------------------\n")
+    print("Adding Synthetic Dataset...")
+    path_to_syn_drb = f"{home}/temp/synthetic/damagedresidentialbuilding"  
+    path_to_syn_drb_annots_json = f"{home}/temp/synthetic/synthetic_drb_annotations.json" 
+    syn_drb_dataset = processor.prepare_coco_dataset(path_to_syn_drb_annots_json, path_to_syn_drb ) 
+
     # Combine multiple input datasets
-    print("--------------------------\n( 3 ) Creating Dataset\n--------------------------\n")
-    processed_dataset = processor.combine_datasets(datasets)
+    print("--------------------------\n( 4 ) Creating Dataset\n--------------------------\n")
+    processed_dataset = processor.combine_datasets(datasets, syn_drb_dataset)
 
     # Statistics
     print("\n\n")
-    print("--------------------------\n( 4 ) Dataset Statistics\n--------------------------\n")
+    print("--------------------------\n( 5 ) Dataset Statistics\n--------------------------\n")
     print(f"Number of images: {processed_dataset.analyze.num_images}")
     print(f"Number of classes: {processed_dataset.analyze.num_classes}")
     print(f"Classes:{processed_dataset.analyze.classes}")
@@ -202,7 +208,7 @@ if __name__ == "__main__":
     print("\n\n")
 
     # Export for YOLO
-    print("--------------------------\n( 5 ) COCO to YOLO\n--------------------------\n")
+    print("--------------------------\n( 6 ) COCO to YOLO\n--------------------------\n")
     print("Exporting to YOLO format...")
     processed_dataset.export.ExportToYoloV5(output_path=f'{destination_path}/labels',
                                             yaml_file='dataset.yaml',
