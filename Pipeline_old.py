@@ -63,14 +63,10 @@ class CocoDatasetProcessor:
         Parameters:
         - path_to_annots_json (str): The path to the COCO format annotations JSON file.
         - path_to_images (str): The path to the directory containing images.
-        - user (str): The user identifier.
-        - suffix (str): The suffix indicating pre/post event.
 
         Returns:
         - Dataset: The prepared Pylabel dataset.
         """
-        print("\n")
-        print(f"Preprocessing {user}-{suffix}...")
 
         # Create a COCO PyLabel dataset
         annots_dataset = self.coco_importer(path_to_annots_json, path_to_images, name="annots_coco")
@@ -188,7 +184,9 @@ if __name__ == "__main__":
                 continue
 
             path_to_images = image_directory
-            dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images, user, suffix)
+            print("\n")
+            print(f"Preprocessing {user}-{suffix}...")
+            dataset = processor.prepare_coco_dataset(path_to_annots_json, path_to_images)
     
             # Modify img_filename column to add suffix in front of each filename
             dataset.df['img_filename'] = suffix + '_' + dataset.df['img_filename']
@@ -200,7 +198,7 @@ if __name__ == "__main__":
     print("Adding Background Dataset...")
     path_to_bg = f"{home}/temp/background/background"  
     path_to_bg_annots_json = f"{home}/temp/background/background_img.json" 
-    bg_dataset = importer.ImportCoco(path_to_bg_annots_json, path_to_images=path_to_bg, name="annots_bg") 
+    bg_dataset = processor.prepare_coco_dataset(path_to_bg_annots_json, path_to_bg) 
     bg_dataset = bg_dataset.df[bg_dataset.df['img_filename'] != 'base.jpg']     
     
     # Combine multiple input datasets

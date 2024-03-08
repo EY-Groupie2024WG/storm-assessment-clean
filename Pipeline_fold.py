@@ -5,6 +5,7 @@ import warnings
 from pylabel import importer
 from collections import Counter
 from pylabel.dataset import Dataset
+import argparse 
 
 class CocoDatasetProcessor:
     """
@@ -83,22 +84,44 @@ class CocoDatasetProcessor:
 
         return annots_dataset
 
-    def combine_datasets(self, datasets, synthetic_drb):
+    def combine_datasets(self, datasets, synthetic_datasets, include_synthetic=False):
         """
         Combine multiple PyLabel datasets into a single dataset.
 
         Parameters:
         - datasets (list): A list of Dataset objects to be combined.
+        - synthetic_datasets (list): A list of synthetic Dataset objects to be combined.
+        - include_synthetic (bool): Whether to include synthetic datasets. Default is False.
 
         Returns:
         - Dataset: The combined Pylabel dataset.
         """
-        combined_df = pd.concat([dataset.df for dataset in datasets], axis=0)
-        print(f"Number of images before dropna: {Dataset(combined_df).analyze.num_images}")
+        combined_dfs = []
+
+        # Concatenate real dataset
+        for dataset in datasets:
+            combined_dfs.append(dataset.df)
+
+        print(f"Number of labels before combining synthetic datasets: {pd.concat(combined_dfs).shape[0]}")
+
+        # Concatenate synthetic dataset if include_synthetic is True
+        if include_synthetic:
+            for synthetic_dataset in synthetic_datasets:
+                combined_dfs.append(synthetic_dataset.df)
+
+        print(f"Number of labels after combining synthetic datasets: {pd.concat(combined_dfs).shape[0]}")
+
+        # Concatenate all dataframes
+        combined_df = pd.concat(combined_dfs, axis=0)
+
+        print(f"Number of labels before dropna: {combined_df.shape[0]}")
+
+        # Drop rows with missing 'cat_name'
         combined_df = combined_df.dropna(subset=['cat_name'])
-        print(f"Number of images after dropna: {Dataset(combined_df).analyze.num_images}")
-        combined_df = pd.concat([synthetic_drb.df, combined_df], axis=0)
-        print(f"Number of images after adding drb: {Dataset(combined_df).analyze.num_images}")
+
+        print(f"Number of labels after dropna: {combined_df.shape[0]}")
+
+        # Sort and reset index
         combined_df.sort_values(by='img_filename', inplace=True)
         combined_df.reset_index(drop=True, inplace=True)
 
@@ -116,25 +139,14 @@ class CocoDatasetProcessor:
 
         return Dataset(combined_df)
 
-    def check_class_fraction(self, dataset):
-        """
-        Check class fraction for the train and test splits of the given dataset.
-
-        Parameters:
-        - dataset (Dataset): The dataset to analyze.
-        """
-        splits = dataset.df.groupby('split')
-
-        for split, df in splits:
-            classes = Counter(df['cat_name'])
-            total_samples = len(df)
-            print(f"\nClass fraction for {split} dataset:")
-            for class_name, count in classes.items():
-                fraction = (count / len(df))*100
-                print(f"{class_name}: {fraction:.4f}% ({count}/{total_samples} samples)")
 
 if __name__ == "__main__":
-    print("--------------------------\nPipeline Script \n(KFold Version) \nLast Update: 7/3/2024 \n-------------------------- \n\n")
+    # Add argument parser
+    parser = argparse.ArgumentParser(description='Process COCO datasets.')
+    parser.add_argument('--include_synthetic', action='store_true', help='Include synthetic dataset')
+    args = parser.parse_args()
+
+    print("--------------------------\nPipeline Script \n(KFold Version) \nLast Update: 8/3/2024 \n-------------------------- \n\n")
     # Define the paths
     home = os.getcwd() # Make sure inside the home directory of repo
     destination_path = f"{home}/processed_yolo"
@@ -188,14 +200,34 @@ if __name__ == "__main__":
 
     # Process additional datasets excluding annotations (Background)
     print("--------------------------\n( 3 ) Adding Optional Dataset\n--------------------------\n")
-    print("Adding Synthetic Dataset...")
-    path_to_syn_drb = f"{home}/temp/synthetic/damagedresidentialbuilding"  
-    path_to_syn_drb_annots_json = f"{home}/temp/synthetic/synthetic_drb_annotations.json" 
-    syn_drb_dataset = processor.prepare_coco_dataset(path_to_syn_drb_annots_json, path_to_syn_drb ) 
+    if args.include_synthetic:  # Check if --include_synthetic argument is provided
+        print("Adding Synthetic Dataset...")
+        synthetic_classes = ['damagedresidentialbuilding', 'damagedcommercialbuilding', 'undamagedcommercialbuilding']
 
+        synthetic_dataset = []
+
+        for syn_class in synthetic_classes:
+            path_to_syn = f"{home}/temp/synthetic/{syn_class}"  
+            path_to_syn_annots_json = f"{home}/temp/synthetic/synthetic_{syn_class}.json" 
+
+            # Check if the annotation file exists
+            if not os.path.exists(path_to_syn_annots_json):
+                print(f"\n\nsynthetic_{syn_class}.json Not Found.\n Skipping...\n\n")
+                continue
+
+            # Check if the directory exists
+            if not os.path.exists(image_directory):
+                print(f"Directory not found: {image_directory}. Skipping...")
+                continue   
+
+            print(f"\n\nPreprocessing {syn_class} synthetic images...")
+            syn_dataset = processor.prepare_coco_dataset(path_to_syn_annots_json, path_to_syn ) 
+
+            synthetic_dataset.append(syn_dataset)
+    
     # Combine multiple input datasets
     print("--------------------------\n( 4 ) Creating Dataset\n--------------------------\n")
-    processed_dataset = processor.combine_datasets(datasets, syn_drb_dataset)
+    processed_dataset = processor.combine_datasets(datasets, synthetic_dataset if args.include_synthetic else [], include_synthetic=args.include_synthetic)
 
     # Statistics
     print("\n\n")
